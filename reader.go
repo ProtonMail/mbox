@@ -113,7 +113,7 @@ func (r *Reader) NextMessage() (io.Reader, error) {
 				continue
 			}
 			if isFromLine {
-				r.lastDelimiter = b
+				r.lastDelimiter = append([]byte{}, b...)
 				break
 			} else {
 				return nil, ErrInvalidFormat
@@ -123,7 +123,7 @@ func (r *Reader) NextMessage() (io.Reader, error) {
 		if _, err := io.Copy(ioutil.Discard, r.mr); err != nil {
 			return nil, err
 		}
-		r.lastDelimiter = r.mr.lastDelimiter
+		r.lastDelimiter = append([]byte{}, r.mr.lastDelimiter...)
 		if r.mr.atEOF {
 			return nil, io.EOF
 		}
