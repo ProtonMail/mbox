@@ -24,6 +24,7 @@ type messageReader struct {
 	next               bytes.Buffer
 	atEOF, atSeparator bool
 	atMiddleOfLine     bool
+	lastDelimiter      []byte
 }
 
 func (mr *messageReader) Read(p []byte) (int, error) {
@@ -41,6 +42,7 @@ func (mr *messageReader) Read(p []byte) (int, error) {
 		if !mr.atMiddleOfLine {
 			if bytes.HasPrefix(b, header) {
 				mr.atSeparator = true
+				mr.lastDelimiter = b
 				return 0, io.EOF
 			} else if len(b) == 0 {
 				// Check if the next line is separator. In such case the new
@@ -53,6 +55,7 @@ func (mr *messageReader) Read(p []byte) (int, error) {
 
 				if bytes.HasPrefix(b, header) {
 					mr.atSeparator = true
+					mr.lastDelimiter = b
 					return 0, io.EOF
 				}
 
@@ -76,8 +79,9 @@ func (mr *messageReader) Read(p []byte) (int, error) {
 
 // Reader reads an mbox archive.
 type Reader struct {
-	r  *bufio.Reader
-	mr *messageReader
+	r             *bufio.Reader
+	mr            *messageReader
+	lastDelimiter []byte
 }
 
 // NewReader returns a new Reader to read messages from mbox file format data
@@ -95,9 +99,9 @@ func (r *Reader) NextMessage() (io.Reader, error) {
 			if err != nil {
 				return nil, err
 			}
-			
+
 			isFromLine := bytes.HasPrefix(b, header)
-			
+
 			// Discard the rest of the line.
 			for isPrefix {
 				_, isPrefix, err = r.r.ReadLine()
@@ -109,6 +113,7 @@ func (r *Reader) NextMessage() (io.Reader, error) {
 				continue
 			}
 			if isFromLine {
+				r.lastDelimiter = b
 				break
 			} else {
 				return nil, ErrInvalidFormat
@@ -118,10 +123,17 @@ func (r *Reader) NextMessage() (io.Reader, error) {
 		if _, err := io.Copy(ioutil.Discard, r.mr); err != nil {
 			return nil, err
 		}
+		r.lastDelimiter = r.mr.lastDelimiter
 		if r.mr.atEOF {
 			return nil, io.EOF
 		}
 	}
 	r.mr = &messageReader{r: r.r}
 	return r.mr, nil
+}
+
+// GetMessageDelimiter returns delimiter in mbox file after message was loaded.
+// Otherwise empty.
+func (r *Reader) GetMessageDelimiter() []byte {
+	return r.lastDelimiter
 }

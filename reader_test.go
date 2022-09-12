@@ -464,6 +464,34 @@ Subject: Test
 	}
 }
 
+func TestReadDelimiter(t *testing.T) {
+	wantDelimiters := []string{
+		"From herp.derp@example.com Thu Jan  1 00:00:01 2015",
+		"From derp.herp@example.com Thu Jan  1 00:00:01 2015",
+		"From bernd.lauert@example.com Thu Jan  3 00:00:01 2015",
+	}
+	b := bytes.NewBufferString(mboxWithThreeMessages)
+	m := NewReader(b)
+	for i := 0; i < len(wantDelimiters); i++ {
+		_, err := m.NextMessage()
+		if err != nil {
+			t.Fatalf("Error should be nil but have %v", err)
+		}
+
+		if string(m.GetMessageDelimiter()) != wantDelimiters[i] {
+			t.Errorf(
+				"Message %d expected to have delimiter\n%q\nbut have\n%q",
+				i, wantDelimiters[i], m.GetMessageDelimiter(),
+			)
+		}
+	}
+
+	_, err := m.NextMessage()
+	if err != io.EOF {
+		t.Fatalf("Error should be EOF but have %v", err)
+	}
+}
+
 func ExampleReader() {
 	r := strings.NewReader(`From herp.derp@example.com Thu Jan  1 00:00:01 2015
 From: herp.derp@example.com (Herp Derp)
