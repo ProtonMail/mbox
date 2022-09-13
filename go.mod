@@ -1,3 +1,3 @@
-module github.com/emersion/go-mbox
+module github.com/ProtonMail/go-mbox
 
 go 1.12
